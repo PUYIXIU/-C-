@@ -1,0 +1,694 @@
+/*
+       迷宫存储结构：无向图邻接矩阵
+
+	   迷宫有无通路的判断：无向图矩阵的深度优先遍历
+      
+	    文件字符是否存在查找：顺序查找
+
+    1.开始游戏：
+	    界面：每走一步   界面刷新   迷宫数字矩阵变化
+		方向：每走一步   判断老鼠和谷仓的位置是否重合
+						 重合：  胜利返回
+						 不重合：继续移动
+	    时间：精确到秒，刷新界面时显示时间在变化
+	2.自选地图
+	    提供几份迷宫的地图
+        选择地图（提前放入文件中了）  通过文件打开
+
+		提示：选择该地图后  之后的1、3、5、6选项都是根据该地图进行的操作
+
+	3.修改地图
+	    对当前加载中的地图进行修改
+
+	4.新建地图
+	    允许用户完全自己新建一个地图，
+		输入结束后，系统会判断该地图是否有通关道路
+		如果没有，则视为建设不成立
+	    
+	5.通关攻略
+	     分为（1）最佳通关路径
+		     （2）全部通关路径
+
+	7.退出游戏
+*/
+//_CRT_SECURE_NO_WARNINGS
+#include<stdio.h>
+#include<stdlib.h>
+#include <conio.h>  //控制台输入输出函数   	printf("%c%c\n",0xaa, 0xa2);
+#include<time.h>
+#include<string.h>
+#define maxsize 100   //迷宫的最大尺寸
+#define maxfile 30    //最多文件数
+struct BestWay
+{
+	int len;
+	int BestMaze[maxsize][maxsize];
+}BestWay;
+int maze[maxsize][maxsize] = {   //墙：0   路：1     老鼠：2    粮仓：3
+{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+{0, 2, 1, 1, 1, 1, 1, 1, 0, 0},
+{0, 0, 0, 1, 0, 0, 0, 1, 1, 0},
+{0, 1, 0, 0, 0, 0, 0, 0, 1, 0},
+{0, 1, 1, 1, 1, 1, 1, 1, 1, 0},
+{0, 0, 0, 1, 0, 1, 0, 0, 0, 0},
+{0, 1, 1, 1, 0, 1, 0, 3, 1, 0},
+{0, 1, 0, 0, 0, 1, 0, 0, 1, 0},
+{0, 1, 0, 1, 1, 1, 1, 1, 1, 0},
+{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};//迷宫的初始化
+int row=10, col=10;    //尺寸
+int Mx=1, My=1;   //老鼠设定坐标
+int mx=1, my=1;    //移动坐标
+int Fx=6, Fy=7;    //粮仓坐标
+int timelimit=20;   //时间限制
+int waynum,sign;   //通路数量，通路累加变量  
+int filechoose=2,cusfile;       //默认地图2   操作文件号   玩家地图号   总文件数量
+char Filename[maxfile][30];   //文件名数组  = {{""},{"ONE.txt"},{"TWO.txt"},{"THREE.txt"},{"FOUR.txt"}};
+
+void Menu()   //游戏主菜单函数
+{
+	system("cls"); 
+	printf(" \033[35m *****\033[34m****\033[36m***\033[0m**欢迎来到老鼠走迷宫游戏**\033[36m***\033[34m****\033[35m****\033[0m\n");
+	printf("\033[00m *                                               *\n");
+	printf("\033[34m*                 \033[0m--*游戏菜单*--                  \033[34m*\n");
+	printf("\033[36m *                                               *\n");
+	printf("\033[0m*             ---* 1. 开始游戏 *---               *\n");
+	printf("\033[36m *                                               *\n");
+	printf("\033[34m*             \033[0m---* 2. 游戏设置 *---               \033[34m*\n");
+	printf("\033[00m *                                               *\n");
+	printf("\033[34m*             \033[00m---* 3. 通关攻略 *---               \033[34m*\n");
+	printf("\033[36m *                                               *\n");
+	printf("\033[0m*             ---* 0. 退出系统 *---               *\n");
+	printf("\033[00m *                                               *\n");
+	printf(" \033[35m *******\033[34m*******\033[36m******\033[0m********\033[36m******\033[34m*******\033[35m*******\033[0m\n");
+}
+
+void SettingMenu()  //设置菜单
+{
+	system("cls");
+	printf(" \033[35m *****\033[34m****\033[36m***\033[0m***********************\033[36m***\033[34m****\033[35m****\033[0m\n");
+	printf("\033[00m *                                               *\n");     
+	printf("\033[34m*                 \033[0m--*游戏设置*--                  \033[34m*\n");
+	printf("\033[36m *                                               *\n");
+	printf("\033[0m*             ---* 1. 选择地图 *---               *\n");
+	printf("\033[36m *                                               *\n");
+	printf("\033[34m*             \033[0m---* 2. 修改地图 *---               \033[34m*\n");
+	printf("\033[00m *                                               *\n");
+	printf("\033[34m*             \033[00m---* 3. 新建地图 *---               \033[34m*\n");
+	printf("\033[36m *                                               *\n");
+	printf("\033[0m*             ---* 4. 删除地图 *---               *\n");
+	printf("\033[36m *                                               *\n");
+	printf("\033[0m*             \033[00m---* 5. 预览地图 *---               \033[34m*\n");
+	printf("\033[36m *                                               *\n");
+	printf("\033[34m*             \033[00m---* 6. 时间设置 *---               \033[34m*\n");
+	printf("\033[36m *                                               *\n");
+	printf("\033[0m*             ---* 0. 退出设置 *---               *\n");
+	printf("\033[00m *                                               *\n");
+	printf(" \033[35m *******\033[34m*******\033[36m******\033[0m********\033[36m******\033[34m*******\033[35m*******\033[0m\n");
+}
+
+void WayMenu()  //通关秘籍菜单
+{
+	system("cls");
+	printf(" \033[35m *****\033[34m****\033[36m***\033[0m***********************\033[36m***\033[34m****\033[35m****\033[0m\n");
+	printf("\033[00m *                                               *\n");
+	printf("\033[34m*                 \033[0m--*通关秘籍*--                  \033[34m*\n");
+	printf("\033[36m *                                               *\n");
+	printf("\033[0m*             ---* 1. 最短路径 *---               *\n");
+	printf("\033[36m *                                               *\n");
+	printf("\033[34m*             \033[0m---* 2. 通关全解 *---               \033[34m*\n");
+	printf("\033[00m *                                               *\n");
+	printf("\033[0m*             ---* 0. 退出秘籍 *---               *\n");
+	printf("\033[00m *                                               *\n");
+	printf(" \033[35m *******\033[34m*******\033[36m******\033[0m********\033[36m******\033[34m*******\033[35m*******\033[0m\n");
+}
+
+void ChangeMenu()  //修改菜单
+{
+	printf(" \033[35m *****\033[34m****\033[36m***\033[0m***********************\033[36m***\033[34m****\033[35m*****\033[0m\n");
+	printf("\033[00m *                                               *\n");
+	printf("\033[34m*                 \033[0m--*修改界面*--                  \033[34m*\n");
+	printf("\033[36m *                                               *\n");
+	printf("\033[0m*             ---* 1. 墙路修改 *---               *\n");
+	printf("\033[36m *                                               *\n");
+	printf("\033[34m*             \033[0m---* 2. 保存修改 *---               \033[34m*\n");
+	printf("\033[00m *                                               *\n");
+	printf("\033[0m*             ---* 0. 退出修改 *---               *\n");
+	printf("\033[00m *                                               *\n");
+	printf(" \033[35m *******\033[34m*******\033[36m******\033[0m********\033[36m******\033[34m*******\033[35m*******\033[0m\n");
+
+}
+
+int Check(char name[30])  //顺序查找函数
+{
+	int i;
+	strcpy(Filename[0], name);
+	for (i = cusfile;strcmp(Filename[i], name);i--);
+	return i;
+}
+
+void Save(int mod,int Maze[maxsize][maxsize],int rowsize,int colsize,int mx,int my,int cx,int cy)  //存储函数
+{
+	int i, j;
+	FILE* fp;
+	char name[30];
+	if (mod == 1)  //玩家文件
+	{
+		printf("\n新建地图名\033[33m（1-10个字）\033[0m：");
+		getchar();  
+	N:	scanf_s("%s",name,30);
+		getchar();
+		if (strlen(name) > 20)
+		{
+			printf("\033[31m地图名过长，请重新输入\033[0m：");
+			goto N;
+		}
+		strcat(name, ".txt");
+		if (Check(name))
+		{
+			printf("\033[31m地图名已存在,请重新输入\033[0m：");
+			goto N;
+		}
+		strcpy(Filename[++cusfile], name);
+		fp = fopen(Filename[cusfile], "w+");
+	}//if
+	else
+		fp = fopen(Filename[filechoose], "w+");
+	fprintf(fp, "%d\t", rowsize);
+	fprintf(fp, "%d\t", colsize);
+	fprintf(fp, "%c", '\n');
+	for (i = 0;i < rowsize;i++)
+	{
+		for (j = 0;j < colsize;j++)
+			fprintf(fp, "%4d", Maze[i][j]);
+		fprintf(fp, "%c", '\n');
+	}
+	fprintf(fp, "%d\t", mx);
+	fprintf(fp, "%d\t", my);
+	fprintf(fp, "%d\t", cx);
+	fprintf(fp, "%d\t", cy);
+	fclose(fp);
+}
+
+void Read()  //5.载入地图
+{
+	int i, j;
+	FILE* fp;
+	fp = fopen(Filename[filechoose], "r");
+	if (!fp)
+	{
+		printf("请先创建地图文件\n");
+		system("pause");
+	}
+	else
+	{
+		fscanf(fp, "%d\t",&row);
+		fscanf(fp, "%d\t",&col);
+		fscanf(fp,"\n");
+		for (i = 0;i < row;i++)
+		{
+			for (j = 0;j < col;j++)
+				fscanf(fp, "%4d", &maze[i][j]);
+			fscanf(fp, "\n");
+		}
+		fscanf(fp, "%d\t", &Mx);
+		fscanf(fp, "%d\t", &My);
+		fscanf(fp, "%d\t", &Fx);
+		fscanf(fp, "%d\t", &Fy);
+		fclose(fp);
+	}
+}
+
+void SaveFileName()  //存储地图名函数
+{
+	FILE* fp;
+	int i;
+	fp = fopen("MazeName.txt", "w+");
+	fprintf(fp, "%d\n", cusfile);
+	for (i = 1;i <= cusfile;i++)
+		fprintf(fp, "%s\n", Filename[i]);
+	fclose(fp);
+}
+
+void ReadFileName()  //读取地图名函数
+{
+	FILE* fp;
+	int i;
+	fp = fopen("MazeName.txt", "r+"); 
+	fscanf(fp, "%d\n", &cusfile);
+	for (i = 1;i <= cusfile;i++)
+		fscanf(fp, "%s\n", Filename[i]);
+	fclose(fp);
+}
+
+void PrintMaze(int Maze[maxsize][maxsize],int mode)  //输出迷宫图像函数
+{
+	int i, j;
+	for (i = 0;i < row;i++)
+	{
+		for (j = 0;j < col;j++)
+		{
+			switch (Maze[i][j])
+			{
+			case 0:printf("▉");break;//墙
+			case 1:printf("  ");break;//路
+			case 2:
+				if (mode)
+					printf("\033[31m\033[0m");//老鼠
+				else
+					printf("\033[36m\033[0m");
+				break;
+			case 3:printf("\033[34m\033[0m");break;//粮仓
+			}//switch
+		}//for j
+		putchar('\n');
+	}//for i
+}
+
+int move(char direction)   //移动函数
+{
+	int xmov = 0, ymov = 0;
+	switch (direction)
+	{
+	case'w':xmov = -1;break;
+	case's':xmov = 1;break;
+	case'a':ymov = -1;break;
+	case'd':ymov = 1;break;
+	default:return 0;break;
+	}//switch
+	if (maze[mx + xmov][my + ymov]==1)
+	{
+		maze[mx + xmov][my + ymov] = 2;
+		maze[mx][my] = 1;
+		mx += xmov;
+		my += ymov;
+	}
+	else if (maze[mx + xmov][my + ymov] == 3)
+	{
+		maze[mx][my] = 1;
+		return 1;  //返回胜利标志
+	}
+	return 0;
+}
+
+void GameStart()  //游戏开始函数
+{
+	int win=0,Time=0;
+	time_t start;
+	mx = Mx;   my = My;
+	maze[mx][my] = 2;
+	start = time(NULL);
+	do
+	{
+		system("cls");
+		printf("\033[33m游戏规则:  w上 s下 a左 d右 操纵在规定时间%d内到达的位置\n", timelimit);
+		printf("      游戏开始\033[0m\n");
+		PrintMaze(maze,1);
+		printf("倒计时:%d\n",timelimit-Time);
+		if (_kbhit())  //探测键盘输入
+		{
+			win = move(_getch());
+			system("cls");
+			printf("\033[33m游戏规则:  w上 s下 a左 d右 操纵在规定时间%d内到达的位置\n", timelimit);
+			printf("      游戏开始\033[0m\n");
+			PrintMaze(maze,1);
+		}//if _kbhit
+		if (win)
+		{
+			printf("\033[33m *-*-* 你赢了! *-*-*\033[0m\n");
+			system("pause");
+			return;
+		}
+		if (Time>=timelimit)
+		{
+			printf("\033[36m超过时间限制，你输了\033[0m\n");
+			maze[mx][my] = 1;
+			system("pause");
+			return;
+		}
+		Time = time(NULL) - start;
+	} while (!win);
+}
+
+void WayNumber(int Maze[maxsize][maxsize],int x, int y)//统计通路的数量
+{
+	Maze[x][y] = 2;   //设置老鼠位置
+	if (Maze[x - 1][y] == 3 || Maze[x + 1][y] == 3 || Maze[x][y - 1] == 3 || Maze[x][y + 1] == 3)
+		waynum++;
+	if (Maze[x - 1][y] == 1) WayNumber(Maze,x - 1, y);
+	if (Maze[x + 1][y] == 1) WayNumber(Maze,x + 1, y);
+	if (Maze[x][y - 1] == 1) WayNumber(Maze,x, y - 1);
+	if (Maze[x][y + 1] == 1) WayNumber(Maze,x, y + 1);
+	Maze[x][y] = 1;   //清空老鼠位置
+}
+
+void ChooseMaze()  //1.选择地图函数
+{
+	int i;
+	printf("\n\t\033[33m退出选择请输入0\033[0m\n\n");
+	for (i = 1;i <= cusfile;i++)
+	{
+		printf("\t地图%d:%s", i, Filename[i]);
+		if (i % 4 == 0)
+			putchar('\n');
+	}
+	printf("\n\n               请选择地图号：");
+F:	scanf("%d", &filechoose);
+	if (filechoose == 0)
+	{
+		filechoose = INT_MAX;
+		return;
+	}
+	if (filechoose<1 || filechoose>cusfile)
+	{
+		printf("\n\033[31m         输入地图号不存在，请重新选择:\033[0m");
+		goto F;
+	}
+	Read();
+	printf("\n\033[33m               地图选择成功!\033[0m\n");
+	system("pause");
+}
+
+void ChangeMaze()  //2.修改地图函数
+{
+	int x, y,choose;
+	maze[Mx][My] = 2;
+	while (1)
+	{
+		system("cls");
+		PrintMaze(maze, 1);
+		ChangeMenu();
+		printf("\n\033[33m       修改规则：1.修改格式：x,y\n                 2.围墙、老鼠、猫的坐标无法修改\033[0m\n\n");
+		printf("                  请选择功能：");
+		scanf_s("%d", &choose);
+		getchar();
+		switch (choose)
+		{
+		case 0:
+			return;
+		case 1://墙路修改
+			printf("\n                  请输入修改坐标：");
+			scanf_s("%d,%d", &x,&y);
+			if (x && y == 0) return;
+			if (x<1 || y<1 || x>(row - 1) || y>(col - 1) || maze[x][y] == 2 || maze[x][y] == 3)
+			{
+				printf("\033[31m                  输入坐标不符合规定\033[0m\n");
+				system("pause");
+			}
+			else
+				maze[x][y] = maze[x][y] ? 0 : 1;
+			break;
+		case 2:
+			Save(0,maze,row,col,Mx,My,Fx,Fy);
+			printf("\n\033[33m                  地图修改文件保存成功!\033[0m\n");
+			system("pause");
+			return;
+		default:
+			printf("\n\033[31m                  输入功能不存在\033[0m\n");
+			system("pause");
+			break;
+		}//switch
+	}//while
+}
+
+void CreatMaze()  //3.新建地图函数
+{
+	int i, j, rowsize, colsize, local,mox,moy,cx,cy;
+	int Maze[maxsize][maxsize];
+A:  system("cls");
+	printf("迷宫尺寸\033[33m（不超过100*100）\033[0m:");
+	scanf_s("%d,%d", &rowsize, &colsize);
+	if (rowsize < 3 || colsize <= 3 || rowsize>maxsize || colsize > maxsize)
+	{
+		printf("\033[31m输入尺寸不符合规定，请重新输入\033[0m\n");
+		system("pause");
+		goto A;
+	}//if size
+ 	printf("\033[33m0-墙面    1-路径\033[0m\n");
+	printf(" ");
+	for (i = 1;i <= rowsize - 2;i++)
+		printf("\033[33m %d", i);
+	printf("\033[0m\n");
+	for (i = 0;i < colsize;i++)
+		Maze[0][i] = Maze[rowsize-1][i] = 0;   //围墙
+	for (i = 1;i <= rowsize - 2;i++)
+	{
+		Maze[i][0] = Maze[i][colsize-1] = 0;
+		printf("\033[33m%d:\033[0m", i);
+		for (j = 1;j <= colsize - 2;j++)
+		{
+			scanf("%d", &local);
+			if (local == 1 || local == 0)
+				Maze[i][j] = local;
+			else
+			{
+				printf("\033[31m输入坐标不符合规定,请重新输入\033[0m\n");
+				system("pause");
+				goto A;
+			}
+		}//for j
+	}//for i
+    printf("\n输入老鼠坐标\033[33m（只能定位在路径上）\033[0m：");
+C:	scanf("%d,%d", &mox, &moy);
+	if (mox<1 || moy<1 || mox>(rowsize - 2) || moy>(colsize - 2) || Maze[mox][moy] == 0)
+	{
+		printf("\033[31m输入坐标不符合规定,请重新输入\033[0m\n");
+		system("pause");
+		goto C;
+	}//if mouse
+	else
+		Maze[mox][moy] = 2;
+    printf("\n输入猫咪坐标\033[33m（只能定位在路径上）\033[0m：");
+D:	scanf("%d,%d", &cx, &cy);
+	if (cx<1 || cy<1 || cx>(rowsize - 2) || cy>(colsize - 2) || Maze[cx][cy] == 0||Maze[cx][cy]==2)
+	{
+		printf("\033[31m输入坐标不符合规定,请重新输入\033[0m\n");
+		system("pause");
+		goto D;
+	}//if cat
+	else
+		Maze[cx][cy] = 3;
+	//check
+	waynum = 0;
+	WayNumber(Maze,mox,moy);
+	if (!waynum)
+	{
+		printf("\033[31m\n输入迷宫不存在出路，请重新创建\033[0m\n");
+		system("pause");
+		goto A;
+	}
+	Save(1,Maze,rowsize, colsize, mox, moy, cx, cy);
+	printf("\n\033[33m该地图存储成功，位置：地图库%d号\033[0m\n\n",cusfile);
+	system("pause");
+}
+
+void Delete(int choose)
+{
+	int i;
+	for (i = choose;i < cusfile;i++)
+		strcpy(Filename[i], Filename[i + 1]);
+	strcpy(Filename[cusfile--],"\0");
+}
+
+void DeleteMaze()  //删除地图函数
+{
+	int i,choose;
+	if (cusfile == 4)
+	{
+		printf("\n\033[31m               查找不到可删除地图\033[0m\n\n");
+		system("pause");
+		return;
+	}
+	printf("\n\033[33m                  退出修改请输入0\033[0m\n\n\t");
+	for (i = 5;i <= cusfile;i++)
+	{
+		printf("\t地图%d:%s", i,Filename[i]);
+		if ((i - cusfile) % 4 == 0)
+			printf("\n\t");
+	}
+	printf("\n\n            请输入要删除的地图号：");
+O:	scanf_s("%d", &choose);
+	if (!choose) return;
+	if (choose<5 || choose>cusfile)
+	{
+		printf("\033[31m          输入的地图号不存在，请重新输入\033[0m：");
+		goto O;
+	}
+	Delete(choose);  
+	printf("\n\033[33m                  地图删除成功!\033[0m\n");
+	system("pause");
+}
+
+void CheckMaze()  //4.预览地图函数
+{
+	maze[Mx][My] = 2;
+	system("cls");
+	printf("\033[33m     迷宫预览图\033[0m\n");
+	PrintMaze(maze,1);
+	system("pause");
+}
+
+void Setting()  //游戏设置
+{
+	int choose;
+	while (1)
+	{
+		SettingMenu();
+		printf("\n                  请选择功能：");
+		scanf_s("%d", &choose);
+		getchar();
+		switch (choose)
+		{
+		case 0:
+			return ;
+		case 1://选择地图
+			ChooseMaze();
+			break;
+		case 2://修改地图
+			ChangeMaze();
+			break;
+		case 3://新建地图
+			CreatMaze();
+			break;
+		case 4://删除地图
+			DeleteMaze();
+			break;
+		case 5://预览地图
+			CheckMaze();
+			break;
+		case 6://时间设置
+			printf("\n                  当前时间限制：%d\n", timelimit);
+			printf("\n                  改为：");
+T:			scanf("%d", &timelimit);
+			if (timelimit < 1)
+			{
+				printf("\033[31m                  时间不能小于1s,请重新输入\033[0m:");
+				goto T;
+			}
+			printf("\n\033[33m                  时间修改成功!\033[0m\n\n");
+			system("pause");
+			break;
+		default:
+			printf("\n\033[31m                  输入功能不存在\033[0m\n");
+			system("pause");
+			break;
+		}
+	}
+}
+
+void WayShort(int x,int y,int len)  //统计最短通路
+{
+	int i, j;
+	maze[x][y] = 2;
+	if (maze[x - 1][y] == 3 || maze[x + 1][y] == 3 || maze[x][y - 1] == 3 || maze[x][y + 1] == 3)
+	{
+		if (BestWay.len > len)
+		{
+			BestWay.len = len;
+			for (i = 0;i < row;i++)
+				for (j = 0;j < col;j++)
+					BestWay.BestMaze[i][j] = maze[i][j];
+		}//if BestWay
+		waynum--;
+		if(!waynum) //所有路径都经过了筛选
+		{
+			printf("\n\033[33m      最佳路径\033[0m\n");
+			PrintMaze(BestWay.BestMaze,0);
+			system("pause");
+			maze[x][y] = 1;
+			return;
+		}
+	}//if 3
+	if (waynum)
+	{
+		if (maze[x - 1][y] == 1) WayShort(x - 1, y, ++len);
+		if (maze[x + 1][y] == 1) WayShort(x + 1, y, ++len);
+		if (maze[x][y - 1] == 1) WayShort(x, y - 1, ++len);
+		if (maze[x][y + 1] == 1) WayShort(x, y + 1, ++len);
+	}
+	maze[x][y] = 1;
+}
+
+void Way_all_Print(int x,int y)  //输出所有通关道路
+{
+	maze[x][y] = 2;
+	if (maze[x - 1][y] == 3 || maze[x + 1][y] == 3 || maze[x][y - 1] == 3 || maze[x][y + 1] == 3)
+	{
+		printf("\n\033[33m      通关路径%d:\033[0m\n",++sign );
+		PrintMaze(maze, 0);
+	}
+	if (sign!=waynum)
+	{
+		if (maze[x - 1][y] == 1) Way_all_Print(x - 1, y);
+		if (maze[x + 1][y] == 1) Way_all_Print(x + 1, y);
+		if (maze[x][y - 1] == 1) Way_all_Print(x, y - 1);
+		if (maze[x][y + 1] == 1) Way_all_Print(x, y + 1);
+	}
+	maze[x][y] = 1;
+}
+
+void Way()  //通关秘籍函数
+{
+	int choose;
+	while (1)
+	{
+	    WayMenu();
+		printf("\n                  请选择功能：");
+		scanf_s("%d", &choose);
+		getchar();
+		switch (choose)
+		{
+		case 0:
+			return;
+		case 1://最短路径
+			waynum = 0;
+			BestWay.len = INT_MAX;
+			WayNumber(maze,Mx,My);      //统计所有可通行的路的数量
+			WayShort(Mx,My,1);        
+			break;
+		case 2://通关全解
+			waynum = 0; sign = 0;
+			BestWay.len = INT_MAX;
+			WayNumber(maze,Mx, My);
+			Way_all_Print(Mx,My);
+			system("pause");
+			break;
+		default:
+			printf("\n\033[31m                  输入功能不存在\033[0m\n");
+			system("pause");
+			break;
+		}
+	}
+}
+
+int main()
+{
+	int choose;
+	ReadFileName();
+	while(1)
+	{
+		Menu();  //输出菜单，同时清屏
+		printf("\n                  请选择功能：");                 //怎么清空缓冲区
+		scanf_s("%d", &choose);
+		getchar();
+		switch (choose)
+		{
+		case 0://退出游戏
+			printf("\n      \033[35m*****\033[34m****\033[36m***\033[0m**感谢游玩**\033[36m***\033[34m****\033[35m*****\033[0m\n");
+			SaveFileName();
+			return 0;
+		case 1://开始游戏
+			GameStart();
+			break;
+		case 2://游戏设定
+			Setting();
+			break;
+		case 3://通关攻略
+			Way();
+			break;
+		default:
+			printf("\n\033[31m                  输入功能不存在\033[0m\n");
+			system("pause");
+			break;
+		}
+	}
+}
